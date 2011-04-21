@@ -1,17 +1,46 @@
+/* Name: templogger.pde
+
+ Temperature logger for Arduino with Adafruit data logging shield
+ http://www.adafruit.com/index.php?main_page=product_info&products_id=243
+
+ Based on code from Adafruit
+ https://github.com/adafruit/Light-and-Temp-logger
+
+ This version is at
+ https://github.com/kjordahl/Temperature-logger
+
+ Logs temperature data from two different sensors, an LM61 analog
+ sensor and a 10 kOhm thermistor.  By default these are on analog pins
+ 1 and 2, but can be set with LM61PIN and THERMPIN below.
+
+ Thermistor:
+ Vishay 10 kOhm NTC thermistor
+ part no: NTCLE100E3103GB0
+ <http://www.vishay.com/thermistors/list/product-29049>
+
+ LM61:
+ National Semiconductor TO-92 Temperature Sensor
+ 10 mV/degree with 600 mV offset, temperature range -30 deg C to 100 deg C
+ part no: LM61BIZ
+ <http://www.national.com/mpf/LM/LM61.html>
+
+ 
+ Kelsey Jordahl
+ kjordahl@alum.mit.edu
+ http://kjordahl.net
+ Time-stamp: <Thu Apr 21 12:11:23 EDT 2011> 
+ */
+
 #include <SD.h>
 #include <Wire.h>
 #include "RTClib.h"
 
-// A simple data logger for the Arduino analog pins
 
-// how many milliseconds between grabbing data and logging it. 1000 ms is once a second
-#define LOG_INTERVAL  1000 // mills between entries (reduce to take more/faster data)
+// 10 s logging interval
+#define LOG_INTERVAL  10000 // mills between entries (reduce to take more/faster data)
 
-// how many milliseconds before writing the logged data permanently to disk
-// set it to the LOG_INTERVAL to write each time (safest)
-// set it to 10*LOG_INTERVAL to write all data every 10 datareads, you could lose up to 
-// the last 10 reads if power is lost but it uses less power and is much faster!
-#define SYNC_INTERVAL 1000 // mills between calls to flush() - to write data to the card
+// 60 s write interval (every 6th sample)
+#define SYNC_INTERVAL 60000 // mills between calls to flush() - to write data to the card
 uint32_t syncTime = 0; // time of last sync()
 
 #define ECHO_TO_SERIAL   1 // echo data to serial port
@@ -21,9 +50,15 @@ uint32_t syncTime = 0; // time of last sync()
 #define redLEDpin 2
 #define greenLEDpin 3
 
+/* constants for extended Steinhart-Hart equation from thermistor datasheet */
+#define A 3.354016E-03
+#define B 2.569850E-04
+#define C 2.620131E-06
+#define D 6.383091E-08
+
 // The analog pins that connect to the sensors
-#define photocellPin 0           // analog 0
-#define tempPin 1                // analog 1
+#define LM61PIN 1		/* analog pin for LM61 sensor */
+#define THERMPIN 2		/* analog pin for thermistor */
 #define BANDGAPREF 14            // special indicator that we want to measure the bandgap
 
 #define aref_voltage 3.3         // we tie 3.3V to ARef and measure it with a multimeter!
@@ -37,6 +72,22 @@ const int chipSelect = 10;
 // the logging file
 File logfile;
 
+float lm61(int RawADC) {
+  float Temp;
+  float voltage = RawADC * aref_voltage / 1024; 
+  Temp = (voltage - 0.6) * 100 ;  //10 mV/degree with 600 mV offset
+  return Temp;
+}
+
+float Thermistor(int RawADC) {
+  float Temp;
+  Temp = log(((1024/float(RawADC)) - 1)); /* relative to 10 kOhm */
+  Temp = 1 / (A + (B * Temp) + (C * Temp * Temp) + (D * Temp * Temp * Temp));
+  Temp = Temp - 273.15;		/* convert to C */
+  // Temp = (Temp * 9.0)/ 5.0 + 32.0; // Convert Celcius to Fahrenheit
+  return Temp;
+}
+
 void error(char *str)
 {
   Serial.print("error: ");
@@ -44,6 +95,7 @@ void error(char *str)
   
   // red LED indicates error
   digitalWrite(redLEDpin, HIGH);
+  digitalWrite(greenLEDpin, HIGH);
 
   while(1);
 }
@@ -103,9 +155,9 @@ void setup(void)
   }
   
 
-  logfile.println("millis,stamp,datetime,light,temp,vcc");    
+  logfile.println("millis,stamp,datetime,lm61temp,thermtemp,vcc");    
 #if ECHO_TO_SERIAL
-  Serial.println("millis,stamp,datetime,light,temp,vcc");
+  Serial.println("millis,stamp,datetime,lm61temp,thermtemp,vcc");
 #endif //ECHO_TO_SERIAL
  
   // If you want to set the aref to something other than 5v
@@ -166,28 +218,25 @@ void loop(void)
   Serial.print('"');
 #endif //ECHO_TO_SERIAL
 
-  analogRead(photocellPin);
+  analogRead(LM61PIN);
   delay(10); 
-  int photocellReading = analogRead(photocellPin);  
+  int lm61reading = analogRead(LM61PIN);
+  float lm61temp = lm61(lm61reading);
   
-  analogRead(tempPin); 
+  analogRead(THERMPIN);
   delay(10);
-  int tempReading = analogRead(tempPin);    
-  
-  // converting that reading to voltage, for 3.3v arduino use 3.3, for 5.0, use 5.0
-  float voltage = tempReading * aref_voltage / 1024;  
-  float temperatureC = (voltage - 0.5) * 100 ;
-  float temperatureF = (temperatureC * 9 / 5) + 32;
+  int thermreading = analogRead(THERMPIN);
+  float thermtemp = Thermistor(thermreading);
   
   logfile.print(", ");    
-  logfile.print(photocellReading);
+  logfile.print(lm61temp);
   logfile.print(", ");    
-  logfile.print(temperatureF);
+  logfile.print(thermtemp);
 #if ECHO_TO_SERIAL
   Serial.print(", ");   
-  Serial.print(photocellReading);
-  Serial.print(", ");    
-  Serial.print(temperatureF);
+  Serial.print(lm61temp);
+  Serial.print(", ");   
+  Serial.print(thermtemp);
 #endif //ECHO_TO_SERIAL
 
   // Log the estimated 'VCC' voltage by measuring the internal 1.1v ref
