@@ -13,6 +13,9 @@
  sensor and a 10 kOhm thermistor.  By default these are on analog pins
  1 and 2, but can be set with LM61PIN and THERMPIN below.
 
+ Uses Narcoleptic library for low power sleep mode between samples
+ http://code.google.com/p/narcoleptic/
+
  Thermistor:
  Vishay 10 kOhm NTC thermistor
  part no: NTCLE100E3103GB0
@@ -28,12 +31,13 @@
  Kelsey Jordahl
  kjordahl@alum.mit.edu
  http://kjordahl.net
- Time-stamp: <Thu Apr 21 12:11:23 EDT 2011> 
+ Time-stamp: <Thu Apr 21 21:39:45 EDT 2011> 
  */
 
 #include <SD.h>
 #include <Wire.h>
-#include "RTClib.h"
+#include <RTClib.h>
+#include <Narcoleptic.h>
 
 
 // 10 s logging interval
@@ -169,12 +173,13 @@ void loop(void)
   DateTime now;
 
   // delay for the amount of time we want between readings
-  delay((LOG_INTERVAL -1) - (millis() % LOG_INTERVAL));
+  // Use Narcoleptic.delay to put in low power mode
+  Narcoleptic.delay((LOG_INTERVAL -1) - ((millis() + Narcoleptic.millis()) % LOG_INTERVAL));
   
   digitalWrite(greenLEDpin, HIGH);
   
   // log milliseconds since starting
-  uint32_t m = millis();
+  uint32_t m = millis() + Narcoleptic.millis();
   logfile.print(m);           // milliseconds since start
   logfile.print(", ");    
 #if ECHO_TO_SERIAL
@@ -261,8 +266,9 @@ void loop(void)
 
   // Now we write data to disk! Don't sync too often - requires 2048 bytes of I/O to SD card
   // which uses a bunch of power and takes time
-  if ((millis() - syncTime) < SYNC_INTERVAL) return;
-  syncTime = millis();
+  uint32_t t = millis() + Narcoleptic.millis();
+  if ((t - syncTime) < SYNC_INTERVAL) return;
+  syncTime = t;
   
   // blink LED to show we are syncing data to the card & updating FAT!
   digitalWrite(redLEDpin, HIGH);
