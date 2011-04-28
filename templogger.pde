@@ -9,9 +9,10 @@
  This version is at
  https://github.com/kjordahl/Temperature-logger
 
- Logs temperature data from two different sensors, an LM61 analog
- sensor and a 10 kOhm thermistor.  By default these are on analog pins
- 1 and 2, but can be set with LM61PIN and THERMPIN below.
+ Logs temperature data from 3 temperature sensors, an LM61 analog
+ sensor and two 10 kOhm thermistors.  By default the LM61 is on analog
+ pin 1 and the thermistors are on pins 2 and 3, but can be set with
+ LM61PIN, THERM1 and THERM2 below.
 
  Uses Narcoleptic library for low power sleep mode between samples
  http://code.google.com/p/narcoleptic/
@@ -31,7 +32,7 @@
  Kelsey Jordahl
  kjordahl@alum.mit.edu
  http://kjordahl.net
- Time-stamp: <Thu Apr 21 21:39:45 EDT 2011> 
+ Time-stamp: <Wed Apr 27 19:19:34 EDT 2011> 
  */
 
 #include <SD.h>
@@ -62,7 +63,8 @@ uint32_t syncTime = 0; // time of last sync()
 
 // The analog pins that connect to the sensors
 #define LM61PIN 1		/* analog pin for LM61 sensor */
-#define THERMPIN 2		/* analog pin for thermistor */
+#define THERM1 2		/* analog pin for thermistor 1 */
+#define THERM2 3		/* analog pin for thermistor 2 */
 #define BANDGAPREF 14            // special indicator that we want to measure the bandgap
 
 #define aref_voltage 3.3         // we tie 3.3V to ARef and measure it with a multimeter!
@@ -159,9 +161,9 @@ void setup(void)
   }
   
 
-  logfile.println("millis,stamp,datetime,lm61temp,thermtemp,vcc");    
+  logfile.println("millis,stamp,datetime,lm61temp,therm1,therm2,vcc");    
 #if ECHO_TO_SERIAL
-  Serial.println("millis,stamp,datetime,lm61temp,thermtemp,vcc");
+  Serial.println("millis,stamp,datetime,lm61temp,therm1,therm2,vcc");
 #endif //ECHO_TO_SERIAL
  
   // If you want to set the aref to something other than 5v
@@ -228,20 +230,29 @@ void loop(void)
   int lm61reading = analogRead(LM61PIN);
   float lm61temp = lm61(lm61reading);
   
-  analogRead(THERMPIN);
+  analogRead(THERM1);
   delay(10);
-  int thermreading = analogRead(THERMPIN);
-  float thermtemp = Thermistor(thermreading);
+  int thermreading = analogRead(THERM1);
+  float therm1temp = Thermistor(thermreading);
+  
+  analogRead(THERM2);
+  delay(10);
+  thermreading = analogRead(THERM2);
+  float therm2temp = Thermistor(thermreading);
   
   logfile.print(", ");    
   logfile.print(lm61temp);
   logfile.print(", ");    
-  logfile.print(thermtemp);
+  logfile.print(therm1temp);
+  logfile.print(", ");    
+  logfile.print(therm2temp);
 #if ECHO_TO_SERIAL
   Serial.print(", ");   
   Serial.print(lm61temp);
   Serial.print(", ");   
-  Serial.print(thermtemp);
+  Serial.print(therm1temp);
+  Serial.print(", ");   
+  Serial.print(therm2temp);
 #endif //ECHO_TO_SERIAL
 
   // Log the estimated 'VCC' voltage by measuring the internal 1.1v ref

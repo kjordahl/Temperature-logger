@@ -5,8 +5,8 @@ Plot data from temperature logger for Arduino with Adafruit data logging shield
  https://github.com/kjordahl/Temperature-logger
 
 Format is assumed to be CSV, containing:
- millis,stamp,datetime,lm61temp,thermtemp,vcc
-with 1 header line.  Columns 4 and 5 will be plotted on a time axis.
+ millis,stamp,datetime,lm61temp,therm1,therm2,vcc
+with 1 header line.  Columns 4, 5 and 6 will be plotted on a time axis.
 
 Usage: plottemp.py logfile.csv [plot.png]
 
@@ -15,7 +15,7 @@ Requires numpy and matplotlib
 Author: Kelsey Jordahl
 Copyright: Kelsey Jordahl 2011
 License: GPLv3
-Time-stamp: <Sun Apr 24 16:05:33 EDT 2011>
+Time-stamp: <Thu Apr 28 12:40:27 EDT 2011>
 
     This program is free software: you can redistribute it and/or
     modify it under the terms of the GNU General Public License as
@@ -53,11 +53,12 @@ def main():
     else:
         pngfilename = sys.argv[2]
         print 'Plot will be saved as %s' % pngfilename
-    data = np.genfromtxt(logfilename, delimiter=',', usecols = (0, 1, 3, 4))
+    data = np.genfromtxt(logfilename, delimiter=',', usecols = (0, 1, 3, 4, 5))
     t = data[:,0]
     stamp = data[:,1]
-    thermtemp = data[:,3]
     lm61temp = data[:,2]
+    therm1 = data[:,3]
+    therm2 = data[:,4]
     # if time stamp data has bad points, set to NaN and fill in with linear model
     offset = stamp[1] - t[1] / 1000
     print offset
@@ -65,6 +66,9 @@ def main():
     print maxstamp
     stamp[stamp<offset] = np.nan
     stamp[stamp>maxstamp] = np.nan
+    nancount = np.sum(np.isnan(stamp))
+    print '%d bad time stamps to interpolate' % nancount
+    #print stamp[np.isnan(stamp)]
     # interpolate won't work - need to extrapolate
     # utime = interp1d(t[np.isfinite(stamp)],stamp[np.isfinite(stamp)])
     # extraolate - see
@@ -74,11 +78,14 @@ def main():
 
     # plot diff
     #pyplot.plot(dates.epoch2num(stamp),lm61temp-thermtemp,'.')
-    pyplot.plot(dates.epoch2num(utime),lm61temp,'.',dates.epoch2num(utime),thermtemp,'.')
+    # plot 2 columns
+    #pyplot.plot(dates.epoch2num(utime),lm61temp,'.',dates.epoch2num(utime),thermtemp,'.')
+    # plot 3 columns
+    pyplot.plot(dates.epoch2num(utime),lm61temp,'.',dates.epoch2num(utime),therm1,'.',dates.epoch2num(utime),therm2,'.')
     # Fahrenheit
     #pyplot.plot(dates.epoch2num(stamp),lm61temp*9/5 + 32,'.',dates.epoch2num(stamp),thermtemp*9/5 + 32,'.')
     ax = pyplot.gca()
-    ax.legend(('LM61','Thermistor'),loc=0)
+    ax.legend(('LM61','Thermistor 1','Thermistor 2'),loc=0)
     ax.set_xlabel('Time')
     ax.set_ylabel(u'Temp (°C)')
     xlocator = dates.AutoDateLocator()

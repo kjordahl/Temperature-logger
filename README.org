@@ -1,10 +1,11 @@
 #+TITLE: README
+# -*- coding: utf-8; -*-
 #+OPTIONS: num:nil toc:nil
 
 A temperature logger for an [[http://www.arduino.cc/][Arduino]] with [[http://www.adafruit.com/index.php?main_page=product_info&products_id=243][data logging shield]] from
 [[http://www.adafruit.com][Adafruit]].  Writes temperature data from two different sensors to an SD
 card with time stamp.  I am using a National Semiconductor [[http://www.national.com/mpf/LM/LM61.html][LM61]] analog
-sensor (part no. LM61BIZ) and a Vishay [[http://www.vishay.com/thermistors/list/product-29049][10 k\Omega thermistor]] (part
+sensor (part no. LM61BIZ) and a Vishay [[http://www.vishay.com/thermistors/list/product-29049][10 kΩ thermistor]] (part
 no. NTCLE100E3103GB0).
 
 Also includes a Python plotting script which plots both sensors and
