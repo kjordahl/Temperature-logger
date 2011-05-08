@@ -15,7 +15,7 @@ Requires numpy and matplotlib
 Author: Kelsey Jordahl
 Copyright: Kelsey Jordahl 2011
 License: GPLv3
-Time-stamp: <Thu Apr 28 12:40:27 EDT 2011>
+Time-stamp: <Sun May  8 16:24:00 EDT 2011>
 
     This program is free software: you can redistribute it and/or
     modify it under the terms of the GNU General Public License as
@@ -35,6 +35,10 @@ import sys, os
 import numpy as np
 from matplotlib import dates, pyplot
 from scipy.interpolate import UnivariateSpline
+
+def c2f(tempC):
+    """Celcius to Fahrenheit degrees conversion"""
+    return tempC * 9/5 + 32
 
 def main():
     if len(sys.argv) < 2:
@@ -88,6 +92,10 @@ def main():
     ax.legend(('LM61','Thermistor 1','Thermistor 2'),loc=0)
     ax.set_xlabel('Time')
     ax.set_ylabel(u'Temp (°C)')
+    ax2 = ax.twinx()
+    clim = pyplot.get(ax,'ylim')
+    ax2.set_ylim(c2f(clim[0]),c2f(clim[1]))
+    ax2.set_ylabel(u'Temp (°F)')
     xlocator = dates.AutoDateLocator()
     xformatter = dates.AutoDateFormatter(xlocator)
     pyplot.gca().xaxis.set_major_locator(xlocator)
