@@ -3,10 +3,18 @@
 #+OPTIONS: num:nil toc:nil
 
 A temperature logger for an [[http://www.arduino.cc/][Arduino]] with [[http://www.adafruit.com/index.php?main_page=product_info&products_id=243][data logging shield]] from
-[[http://www.adafruit.com][Adafruit]].  Writes temperature data from two different sensors to an SD
+[[http://www.adafruit.com][Adafruit]].  Writes temperature data from several different sensors to an SD
 card with time stamp.  I am using a National Semiconductor [[http://www.national.com/mpf/LM/LM61.html][LM61]] analog
-sensor (part no. LM61BIZ) and a Vishay [[http://www.vishay.com/thermistors/list/product-29049][10 kΩ thermistor]] (part
-no. NTCLE100E3103GB0).
+sensor (part no. LM61BIZ), Vishay [[http://www.vishay.com/thermistors/list/product-29049][10 kΩ thermistors]] (part
+no. NTCLE100E3103GB0), and up to 5 digital [[http://www.arduino.cc/playground/Learning/OneWire][1-wire sensors]] (either
+[[http://www.maxim-ic.com/datasheet/index.mvp/id/2812][DS18B20]] or [[http://www.maxim-ic.com/datasheet/index.mvp/id/2815][DS18S20]]).
+
+By default, the LM61 uses analog pin 1, two 10 kΩ thermistors use
+analog pins 2 and 3, and the 1-wire bus uses digital pin 7, but these
+are all changeable.  The sketch will detect the number and type of
+DS18x20 sensors on the 1-wire bus, and whether each is using parasitic
+power.  It gracefully handles plugging/unplugging of sensors, but will
+not detect new sensors after initialization.
 
 Also includes a Python plotting script which plots both sensors and
 fills in bad timestamps with linearly interpolated (or extrapolated) times.
