@@ -37,7 +37,7 @@
  Kelsey Jordahl
  kjordahl@alum.mit.edu
  http://kjordahl.net
- Time-stamp: <Wed Jun  1 17:47:05 EDT 2011> 
+ Time-stamp: <Thu Jun  9 22:26:36 EDT 2011> 
  */
 
 #include <SD.h>
@@ -159,23 +159,38 @@ void ds_setup(void) {
     DS[sensors].parasite = parasite;
     for( i = 0; i < 8; i++) {
       DS[sensors].addr[i] = addr[i];
+      logfile.print(addr[i], HEX);
+      logfile.print(" ");
       Serial.print(addr[i], HEX);
       Serial.print(" ");
     }
     //Serial.print(addr,HEX);
     if ( addr[0] == DS18S20) {
+      logfile.print(" DS18S20");
       Serial.print(" DS18S20");
     }
     else if ( addr[0] == DS18B20) {
+      logfile.print(" DS18B20");
       Serial.print(" DS18B20");
     }
     else {
+      logfile.print(" unknown");
       Serial.print(" unknown");
     }
-    if (DS[sensors].parasite) {Serial.print(" parasite");} else {Serial.print(" powered");}
+    if (DS[sensors].parasite) {
+      logfile.print(" parasite");
+      Serial.print(" parasite");
+    } else {
+      logfile.print(" powered");
+      Serial.print(" powered");
+    }
+    logfile.println();
     Serial.println();
     sensors++;
   }
+  logfile.print(sensors,DEC);
+  logfile.print(" sensors found");
+  logfile.println();
   Serial.print(sensors,DEC);
   Serial.print(" sensors found");
   Serial.println();
@@ -301,7 +316,7 @@ void setup(void)
   }
   
   ds_setup();			/* get digital 1-wire sensors */
-  logfile.print("millis,stamp,datetime,lm61temp,therm1,therm2");    
+  logfile.print("millis,stamp,datetime,lm61temp,therm1,therm2,");    
   for (uint8_t i=0; i<sensors; i++) {
     logfile.print("temp");
     logfile.print(i,DEC);
