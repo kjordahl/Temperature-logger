@@ -5,8 +5,8 @@ Plot data from temperature logger for Arduino with Adafruit data logging shield
  https://github.com/kjordahl/Temperature-logger
 
 Format is assumed to be CSV, containing:
- millis,stamp,datetime,lm61temp,therm1,therm2,vcc
-with 1 header line.  Columns 4, 5 and 6 will be plotted on a time axis.
+ millis,stamp,datetime,lm61temp,therm1,therm2,temp1,temp2,temp3,vcc
+with 6 header lines.  Columns 4, 5 and 6 will be plotted on a time axis.
 
 Usage: plottemp.py logfile.csv [plot.png]
 
@@ -15,7 +15,7 @@ Requires numpy and matplotlib
 Author: Kelsey Jordahl
 Copyright: Kelsey Jordahl 2011
 License: GPLv3
-Time-stamp: <Sun May  8 16:24:00 EDT 2011>
+Time-stamp: <Tue Jul  5 21:13:57 CDT 2011>
 
     This program is free software: you can redistribute it and/or
     modify it under the terms of the GNU General Public License as
@@ -35,12 +35,17 @@ import sys, os
 import numpy as np
 from matplotlib import dates, pyplot
 from scipy.interpolate import UnivariateSpline
+from IPython.Shell import IPShellEmbed
+
+MAXSEC = 1000 # maximum allowable offset in seconds between Arduino time and RTC time over a single file
+MAXTEMP = 50  # temperatures greater than this are not valid
 
 def c2f(tempC):
     """Celcius to Fahrenheit degrees conversion"""
     return tempC * 9/5 + 32
 
 def main():
+    ipshell = IPShellEmbed()
     if len(sys.argv) < 2:
         logfilename = 'log.csv'         # use default filename
 	print 'No input filename specified: using %s' % logfilename
@@ -57,39 +62,41 @@ def main():
     else:
         pngfilename = sys.argv[2]
         print 'Plot will be saved as %s' % pngfilename
-    data = np.genfromtxt(logfilename, delimiter=',', usecols = (0, 1, 3, 4, 5))
+    data = np.genfromtxt(logfilename, delimiter=',', skip_header=6, usecols = (0, 1, 3, 4, 5, 6, 7, 8, 9))
     t = data[:,0]
     stamp = data[:,1]
     lm61temp = data[:,2]
-    therm1 = data[:,3]
+    #therm1 = data[:,3]
+    therm1 = np.ma.masked_where(np.isnan(data[:,3]), data[:,3])
     therm2 = data[:,4]
-    # if time stamp data has bad points, set to NaN and fill in with linear model
+    temp0 = data[:,5]
+    #temp1 = data[:,6]
+    # use masked array rather than nan for bad values
+    data[np.where(data[:,6] > MAXTEMP),6] = np.nan
+    data[np.where(data[:,7] > MAXTEMP),7] = np.nan
+    data[np.where(data[:,8] > MAXTEMP),8] = np.nan
+    temp1 = np.ma.masked_where(np.isnan(data[:,6]), data[:,6])
+    temp2 = np.ma.masked_where(np.isnan(data[:,7]), data[:,7])
+    temp3 = np.ma.masked_where(np.isnan(data[:,8]), data[:,8])
+
     offset = stamp[1] - t[1] / 1000
     print offset
-    maxstamp = t[len(t)-1] / 500 + offset
+    maxstamp = t[len(t)-1] / 1000 + offset + MAXSEC
     print maxstamp
     stamp[stamp<offset] = np.nan
     stamp[stamp>maxstamp] = np.nan
+    stamp[abs(stamp-t/1000-offset) > MAXSEC] = np.nan
     nancount = np.sum(np.isnan(stamp))
     print '%d bad time stamps to interpolate' % nancount
-    #print stamp[np.isnan(stamp)]
-    # interpolate won't work - need to extrapolate
-    # utime = interp1d(t[np.isfinite(stamp)],stamp[np.isfinite(stamp)])
-    # extraolate - see
+    # extrapolate - see
     # http://stackoverflow.com/questions/1599754/is-there-easy-way-in-python-to-extrapolate-data-points-to-the-future
     extrapolator = UnivariateSpline(t[np.isfinite(stamp)],stamp[np.isfinite(stamp)], k=1 )
     utime = extrapolator(t)
 
-    # plot diff
-    #pyplot.plot(dates.epoch2num(stamp),lm61temp-thermtemp,'.')
-    # plot 2 columns
-    #pyplot.plot(dates.epoch2num(utime),lm61temp,'.',dates.epoch2num(utime),thermtemp,'.')
-    # plot 3 columns
-    pyplot.plot(dates.epoch2num(utime),lm61temp,'.',dates.epoch2num(utime),therm1,'.',dates.epoch2num(utime),therm2,'.')
-    # Fahrenheit
-    #pyplot.plot(dates.epoch2num(stamp),lm61temp*9/5 + 32,'.',dates.epoch2num(stamp),thermtemp*9/5 + 32,'.')
+    # plot 6 columns
+    pyplot.plot(dates.epoch2num(utime),lm61temp,'.',dates.epoch2num(utime),therm1,'.',dates.epoch2num(utime),therm2,'.',dates.epoch2num(utime),temp1,'.',dates.epoch2num(utime),temp2,'.',dates.epoch2num(utime),temp3,'.')
     ax = pyplot.gca()
-    ax.legend(('LM61','Thermistor 1','Thermistor 2'),loc=0)
+    ax.legend(('LM61','Thermistor 1','Thermistor 2','digital 1','digital 2','digital 3'),loc=0)
     ax.set_xlabel('Time')
     ax.set_ylabel(u'Temp (°C)')
     ax2 = ax.twinx()
@@ -105,6 +112,8 @@ def main():
         pyplot.savefig(pngfilename)
     # show the plot
     pyplot.show()
+    # open interactive shell
+    ipshell()
 
 if __name__ == '__main__':
     main()
